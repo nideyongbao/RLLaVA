@@ -188,8 +188,9 @@ class HFAccelerator(TrainEngine):
     def save_state(self, model, optimizer, lr_scheduler, checkpoint_path):
         self.accelerator.save_state(checkpoint_path)
 
-    def backward(self, loss):
-        self.accelerator.backward(loss)
+    def backward(self, loss, is_last_step: bool = True):
+        with self.accelerator.accumulate(model):
+            self.accelerator.backward(loss)
 
     def clip_grad_norm_(self, model, max_norm):
         return self.accelerator.clip_grad_norm_(model.parameters(), max_norm)

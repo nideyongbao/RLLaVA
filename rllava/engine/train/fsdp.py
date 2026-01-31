@@ -246,7 +246,8 @@ class FSDPAccelerator(TrainEngine):
         if self.fsdp_config.offload_optimizer:
             self.offload_fsdp_optimizer(optimizer)
 
-    def backward(self, loss: torch.Tensor):
+    def backward(self, loss: torch.Tensor, is_last_step: bool = True):
+        # is_last_step is ignored for FSDP, only used by DeepSpeed
         loss.backward()
 
     def get_fsdp_state_ctx(self, model, state_type, state_cfg, optim_cfg):

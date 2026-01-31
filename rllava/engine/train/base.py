@@ -52,7 +52,7 @@ class TrainEngine:
     def save_state(self, model, optimizer, lr_scheduler, checkpoint_path):
         raise NotImplementedError("save_state is not implemented")
     
-    def backward(self, loss):
+    def backward(self, loss, is_last_step: bool = True):
         raise NotImplementedError("backward is not implemented")
 
     def optimizer_step(self):

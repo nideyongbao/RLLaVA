@@ -169,8 +169,13 @@ class Actor(PolicyRole):
 
                 self.optimizer.zero_grad()
 
-                micro_batches = tqdm(micro_batches, desc="Update policy", position=2, disable=not self.accelerator.is_main_process)
-                for micro_batch in micro_batches:
+                # Convert to list to get length for determining last step
+                micro_batches_list = list(micro_batches)
+                num_micro_batches = len(micro_batches_list)
+                
+                micro_batches_iter = tqdm(enumerate(micro_batches_list), total=num_micro_batches, desc="Update policy", position=2, disable=not self.accelerator.is_main_process)
+                for micro_batch_idx, micro_batch in micro_batches_iter:
+                    is_last_micro_batch = (micro_batch_idx == num_micro_batches - 1)
                     micro_batch_metrics = defaultdict(list)
                     model_inputs = {**micro_batch.batch, **micro_batch.non_tensor_batch}
                     response_mask = model_inputs["response_mask"]
@@ -247,7 +252,8 @@ class Actor(PolicyRole):
                         micro_batch_metrics["actor/kl_coef"] = self.config.kl_loss_coef
      
                     loss = policy_loss * loss_scale_factor
-                    self.accelerator.backward(loss)
+                    # For DeepSpeed: pass is_last_step to trigger allreduce on the last micro_batch
+                    self.accelerator.backward(loss, is_last_step=is_last_micro_batch)
 
                     micro_batch_metrics.update(
                         {

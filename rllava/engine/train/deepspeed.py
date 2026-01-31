@@ -110,14 +110,23 @@ class DeepSpeedAccelerator(TrainEngine):
         self.wait_for_everyone()
         log_with_rank(f"Saved DeepSpeed checkpoint to {local_path}", rank=self.rank, logger=logger)
 
-    def backward(self, loss: torch.Tensor):
+    def backward(self, loss: torch.Tensor, is_last_step: bool = True):
+        """Perform backward pass with gradient accumulation support.
+        
+        Args:
+            loss: The loss tensor to backpropagate.
+            is_last_step: If True, this is the last micro_batch in the accumulation,
+                         triggers allreduce. If False, gradients are accumulated locally.
+        """
+        # Set boundary based on whether this is the last accumulation step
+        # boundary=True triggers allreduce in DeepSpeed ZeRO
+        self.ds_engine.set_gradient_accumulation_boundary(is_boundary=is_last_step)
         kwargs = {"scale_wrt_gas": False}
         self.ds_engine.backward(loss, **kwargs)
 
     def optimizer_step(self, model: DeepSpeedEngine, optimizer):
-        model.set_gradient_accumulation_boundary(is_boundary=True)
         model.step()
-            
+        
         return model.get_global_grad_norm()
 
     def _build_ds_config_dict(self, config) -> Dict[str, Any]:
